@@ -23,8 +23,9 @@ Vue.use(ElementUI);
 
 import "@/assets/iconfont/iconfont.css";
 
-new Vue({
+window.app = new Vue({
     router,
     store,
     render: h => h(App)
 }).$mount('#app')
+

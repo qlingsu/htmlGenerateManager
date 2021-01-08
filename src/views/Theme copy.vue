@@ -105,7 +105,6 @@
           v-for="(charts, index) in chartsComponents"
           :key="index"
           class="zq-charts-item"
-          v-move="[charts]"
         >
           <dom-list :components="[charts]"></dom-list>
         </div>
@@ -113,9 +112,9 @@
     </div>
 
     <!-- 模拟移动model -->
-    <!-- <div class="chart-move-div" v-show="mousedownState">
+    <div class="chart-move-div" v-show="mousedownState">
       <dom-list :components="moveArr"></dom-list>
-    </div> -->
+    </div>
 
     <el-dialog title="模板展示" :visible.sync="dialogVisible" width="auto">
       <el-radio-group v-model="radio" style="display: flex; overflow-x: auto">
@@ -183,8 +182,8 @@ export default {
       });
     });
     self.getChartsGroup();
-    // window.onmousemove = self.mousemoveEvent;
-    // window.onmouseup = self.mouseupEvent;
+    window.onmousemove = self.mousemoveEvent;
+    window.onmouseup = self.mouseupEvent;
   },
   beforeDestroy() {
     let self = this;
@@ -216,7 +215,7 @@ export default {
           groupId: groupId,
         })
         .then((charts) => {
-          self.chartsComponents = charts;
+          self.chartsComponents = self.setNativeOn(charts, "chart");
         });
     },
     //设置原生鼠标事件
