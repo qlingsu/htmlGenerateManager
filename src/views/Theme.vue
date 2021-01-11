@@ -44,7 +44,7 @@
   border: 2px solid #e1e1e1;
   background-color: #ffffff;
   position: fixed;
-  width:#{$clientWidth + 'px'};
+  width: #{$clientWidth + "px"};
 }
 </style>
 <template>
@@ -105,17 +105,14 @@
           v-for="(charts, index) in chartsComponents"
           :key="index"
           class="zq-charts-item"
-          v-move="[charts]"
+          v-zqmove="[charts]"
+          v-zqmove-mousemove="mouseMoveFunction"
+          v-zqmove-mouseup="mouseUpFunction"
         >
           <dom-list :components="[charts]"></dom-list>
         </div>
       </div>
     </div>
-
-    <!-- 模拟移动model -->
-    <!-- <div class="chart-move-div" v-show="mousedownState">
-      <dom-list :components="moveArr"></dom-list>
-    </div> -->
 
     <el-dialog title="模板展示" :visible.sync="dialogVisible" width="auto">
       <el-radio-group v-model="radio" style="display: flex; overflow-x: auto">
@@ -137,13 +134,6 @@
   </div>
 </template>
 <script>
-var mobile = "zq-operater";
-var chartMoveDiv = "chart-move-div";
-var chartCloseBtn = "close-btn_"; //关闭按钮
-
-var offsetX = 0;
-var offsetY = 0;
-
 import Utils from "@/plugin/ChartsModel/utils/utils.js";
 import chartApi from "@/api/chartApi";
 export default {
@@ -157,10 +147,6 @@ export default {
       chartsComponents: [], //所有的图表
       options: [],
       selectValue: "all",
-      moveArr: [],
-
-      mousedownState: false, //鼠标按下状态
-      mouseMoveAction: false, //鼠标移动动作
     };
   },
   watch: {
@@ -173,7 +159,6 @@ export default {
   },
   mounted() {
     let self = this;
-
     chartApi.getFrames().then((frames) => {
       frames.forEach((frame, index) => {
         self.themeComponents.push({
@@ -183,15 +168,9 @@ export default {
       });
     });
     self.getChartsGroup();
-    // window.onmousemove = self.mousemoveEvent;
-    // window.onmouseup = self.mouseupEvent;
-  },
-  beforeDestroy() {
-    let self = this;
-    window.onmousemove = null;
-    window.onmouseup = null;
   },
   methods: {
+    //获取所有的图表组
     getChartsGroup() {
       let self = this;
       chartApi.getChartsGroup().then((charts) => {
@@ -219,125 +198,31 @@ export default {
           self.chartsComponents = charts;
         });
     },
-    //设置原生鼠标事件
-    setNativeOn(arr, sourceVal) {
+    //鼠标移动事件回调
+    mouseMoveFunction(x, y, vdom) {
+      console.log("mouseMoveFunction");
       let self = this;
-      Array.isArray(arr) &&
-        arr.map((component, i) => {
-          if (component.nativeOn) {
-            component.nativeOn = {
-              ...component.nativeOn,
-              mousedown: (e) => {
-                self.source = sourceVal;
-                self.mousedownEvent(e, i);
-              },
-            };
-          } else {
-            component.nativeOn = {
-              mousedown: (e) => {
-                self.source = sourceVal;
-                self.mousedownEvent(e, i);
-              },
-            };
-          }
-        });
-      return arr;
+      let id = self.inFrameReturnId(x, y, "move");
     },
-    mousemoveEvent(e) {
+    //鼠标弹起事件回调
+    mouseUpFunction(x, y, vdom) {
+      console.log("mouseUpFunction");
       let self = this;
-      if (self.mousedownState) {
-        self.mouseMoveAction = true;
-        self.moveModel(e);
-      }
-    },
-    mouseupEvent(e) {
-      let self = this;
-
-      let mouseX = e.clientX;
-      let mouseY = e.clientY;
-
-      self.mouseMoveAction = false;
-      //插入框架
-      // if (self.source == "frame" && self.inTargetContainer(mouseX, mouseY)) {
-      //   self.insertFramentoResult();
-      // }
-      //在结果区域内松的鼠标 且在占位上
-      let id = self.inFrameReturnId(mouseX, mouseY);
+      let id = self.inFrameReturnId(x, y, "up");
       if (id) {
-        self.insertChartntoResult(id);
+        self.insertChartntoResult(id, vdom);
       }
-
-      offsetX = 0;
-      offsetY = 0;
-      self.mousedownState = false;
-
-      //清空移动Model
-      self.moveArr = [];
-    },
-    //判断坐标在不在手机模型结果框中
-    inTargetContainer(x, y) {
-      let self = this;
-      //结果框坐标
-      let targetDiv = document.getElementsByClassName(mobile)[0];
-      let targetRectObj = targetDiv.getBoundingClientRect();
-      if (
-        x > targetRectObj.left &&
-        x < targetRectObj.left + targetRectObj.width &&
-        y > targetRectObj.top &&
-        y < targetRectObj.top + targetRectObj.height
-      ) {
-        return true;
-      } else {
-        return false;
-      }
-    },
-    mousedownEvent(e, index) {
-      let self = this;
-      // if (self.source == "chart") {
-      //   self.moveArr = [Utils.deepClone(self.chartsArr[index])];
-      // } else if (self.source == "frame") {
-      //   self.moveArr = [Utils.deepClone(self.frameArr[index])];
-      // } else if (self.source == "element") {
-      //   self.moveArr = [Utils.deepClone(self.elementArr[index])];
-      // }
-      self.moveArr = [Utils.deepClone(self.chartsComponents[index])];
-      function getStyle(obj, attr) {
-        return obj.currentStyle
-          ? obj.currentStyle[attr]
-          : getComputedStyle(obj, false)[attr];
-      }
-      //如果内容物有width，则chart-move-div的宽度与之一致
-      if (self.moveArr[0].attrs && self.moveArr[0].attrs.width) {
-        let moveDiv = document.getElementsByClassName(chartMoveDiv)[0];
-        moveDiv.style.width = self.moveArr[0].attrs.width;
-      }
-      //计算偏移值---这里不能直接用e.offseX 和e.offsetY 因为要计算点击的外壳div，而不是内容物div
-      let rect = e.currentTarget.getBoundingClientRect();
-      offsetX = e.clientX - rect.left;
-      offsetY = e.clientY - rect.top;
-
-      self.moveModel(e);
-      self.mousedownState = true;
-    },
-    moveModel(e) {
-      let self = this;
-      let moveDiv = document.getElementsByClassName(chartMoveDiv)[0];
-      moveDiv.style.left = e.clientX - offsetX + "px";
-      moveDiv.style.top = e.clientY - offsetY + "px";
-
-      //在结果区域内松的鼠标 且在占位上
-      let id = self.inFrameReturnId(e.clientX, e.clientY);
     },
     //在框架中,返回框架的id，否则返回空
-    inFrameReturnId(x, y) {
+    inFrameReturnId(x, y, state) {
       let self = this;
-      let targetDiv = document.getElementsByClassName(mobile)[0];
+      let targetDiv = document.getElementsByClassName("zq-operater")[0];
+      // if(!targetDiv) return;
       let widgetDivs = targetDiv.getElementsByClassName("widget-div");
       let id = "";
       Array.prototype.forEach.call(widgetDivs, function (widgetDiv) {
         let rect = widgetDiv.getBoundingClientRect();
         widgetDiv.style.border = "none";
-        // widgetDiv.style.backgroundColor = "#FFFFFF";
         if (
           x > rect.left &&
           x <= rect.left + rect.width &&
@@ -345,26 +230,13 @@ export default {
           y <= rect.top + rect.height
         ) {
           id = widgetDiv.id; //当前鼠标落点的id
-          if (self.mouseMoveAction) {
+          if (state == "move") {
             //如果鼠标在移动状态
             widgetDiv.style.border = "2px dotted #50a0f9";
-            // widgetDiv.style.backgroundColor = "#50a0f9";
           }
         }
       });
       return id;
-    },
-    //插入框架到结果中
-    insertFramentoResult() {
-      let self = this;
-      if (self.moveArr && self.moveArr.length == 1) {
-        // self.resultArr.push(self.moveArr[0]);
-        self.moveArr[0].nativeOn = {
-          ...self.moveArr[0].nativeOn,
-          mousedown: function () {},
-        };
-        self.resultArr = self.moveArr;
-      }
     },
     //从结果中删除一个样例
     deleteFromResult(id) {
@@ -378,13 +250,14 @@ export default {
       });
     },
     //插入到结果中
-    insertChartntoResult(insertId) {
-      let self = this;
+    insertChartntoResult(insertId, vdom) {
+      const self = this;
       if (!insertId) {
         return;
       }
+      const chartCloseBtn = "close-btn_"; //关闭按钮
       //要插入的虚拟dom结构
-      let tempVNode = {
+      const tempVNode = {
         name: "div",
         attrs: {
           id: "target-container_" + insertId,
@@ -396,7 +269,7 @@ export default {
               position: "relative",
             },
             children: [
-              self.moveArr[0],
+              vdom,
               {
                 name: "chart-close",
                 on: {
@@ -414,7 +287,7 @@ export default {
         ],
       };
 
-      if (insertId && self.moveArr && self.moveArr.length == 1) {
+      if (insertId && vdom && vdom.length == 1) {
         self.resultArr.forEach((theme, i) => {
           theme.props &&
             theme.props.widgetArr.forEach((widgetDiv, j) => {
@@ -437,7 +310,7 @@ export default {
           self.resultArr = Utils.deepClone(theme.components);
         }
       });
-      console.log(self.resultArr);
+      // console.log(self.resultArr);
       self.dialogVisible = false;
     },
   },

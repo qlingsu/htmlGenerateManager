@@ -1,6 +1,7 @@
 import Utils from './utils/utils'
 const ChartsModel = {};
 import chartMoveDiv from "./common/chart-move-div";
+
 ChartsModel.install = function (Vue, options) {
 
     console.log("", options)
@@ -90,87 +91,40 @@ ChartsModel.install = function (Vue, options) {
             return el;
         }
     }
-    var chartsDivId =  "chartsDiv"
+    var chartsDivId = "chartsDiv"
     var chartsDiv = document.createElement("div");
     chartsDiv.id = chartsDivId;
     var body = document.getElementsByTagName("body")[0];
     body.appendChild(chartsDiv);
 
     let TempConstructor = Vue.extend(chartMoveDiv);
-    // let TempConstructor = Vue.extend({
-    //     template:
-    //         `<div class="chart-move-div" id="${chartsDivId}" v-show="mousedownState" 
-    //         @mousemove="mousemoveHandler"
-    //         @mouseup="mouseupHandler"> 
-    //             <dom-list :components="components"></dom-list>
-    //         </div>`,
-    //     props: {
-    //         components: {
-    //             type: Array,
-    //             default: function () {
-    //                 return []
-    //             }
-    //         },
-    //         mousedownState: {
-    //             type: Boolean,
-    //             default: false
-    //         },
-    //         offsetX:{
-    //             type:Number,
-    //             default:0
-    //         },
-    //         offsetY:{
-    //             type:Number,
-    //             default:0
-    //         }
-    //     },
-    //     methods:{
-    //         mousemoveHandler(e){
-    //             let self = this;
-    //             if(self.mousedownState){
-    //                 console.log("mousemoveEvent")
-    //                 let moveDiv = document.getElementById(chartsDivId);
-    //                 moveDiv.style.left = e.clientX - self.offsetX + "px";
-    //                 moveDiv.style.top = e.clientY - self.offsetY + "px";
-    //             }
-    //         },
-    //         mouseupHandler(e){
-    //             let self = this;
-    //             self.mousedownState=false;
-    //             self.offsetX = 0;
-    //             self.offsetY = 0;
-    //         }
-    //     }
-    // });
     let tempConstructor = new TempConstructor();
-    tempConstructor.id=chartsDivId;
-    console.log("tempConstructor=", tempConstructor)
+    tempConstructor.id = chartsDivId;
+    // console.log("tempConstructor=", tempConstructor)
     tempConstructor.$mount("#" + chartsDivId);
 
+    function moveDownHandler(e) {
+        // console.log("moveDownHandler", i++,e,this.binding)
+        tempConstructor.mousedownState = true;
+        tempConstructor.components = this.binding.value;//赋值给复制用的div
+        let rect = e.currentTarget.getBoundingClientRect();
+        tempConstructor.offsetX = e.clientX - rect.left;
+        tempConstructor.offsetY = e.clientY - rect.top;
 
-    Vue.directive('move', {
+        let moveDiv = document.getElementById(chartsDivId);
+        moveDiv.style.left = e.clientX - tempConstructor.offsetX + "px";
+        moveDiv.style.top = e.clientY - tempConstructor.offsetY + "px";
+    }
+
+    Vue.directive('zqmove', {
         // bind: 只调用一次，指令第一次绑定到元素时调用，用这个钩子函数可以定义一个在绑定时执行一次的初始化动作。
         // inserted: 被绑定元素插入父节点时调用（父节点存在即可调用，不必存在于 document 中）。
         // update: 被绑定元素所在的模板更新时调用，而不论绑定值是否变化。通过比较更新前后的绑定值，可以忽略不必要的模板更新（详细的钩子函数参数见下）。
         // componentUpdated: 被绑定元素所在模板完成一次更新周期时调用。
-
         // unbind: 只调用一次， 指令与元素解绑时调用。
         //只调用一次，指令第一次绑定到元素时调用。在这里可以进行一次性的初始化设置。
         bind: function (el, binding, vnode, oldVnode) {
-
-            el.addEventListener("mousedown", (e) => {
-                // console.log("mousedown Event");
-                tempConstructor.components = binding.value;//赋值给复制用的div
-                tempConstructor.mousedownState = true;
-
-                let rect = e.currentTarget.getBoundingClientRect();
-                tempConstructor.offsetX = e.clientX - rect.left;
-                tempConstructor.offsetY = e.clientY - rect.top;
-
-                let moveDiv = document.getElementById(chartsDivId);
-                moveDiv.style.left = e.clientX - tempConstructor.offsetX + "px";
-                moveDiv.style.top = e.clientY - tempConstructor.offsetY + "px";
-            })
+            el.onmousedown = moveDownHandler.bind({ binding: binding });
         },
         //所在组件的 VNode 更新时调用，但是可能发生在其子 VNode 更新之前
         //binding：一个对象，包含以下 property：
@@ -181,17 +135,50 @@ ChartsModel.install = function (Vue, options) {
         // arg：传给指令的参数，可选。例如 v-my-directive:foo 中，参数为 "foo"。
         // modifiers：一个包含修饰符的对象。例如：v-my-directive.foo.bar 中，修饰符对象为 { foo: true, bar: true }。
         update: function (el, binding, vnode, oldVnode) {
-            var components = binding.value;
-            console.log("update binding=", binding)
-            // if (binding.value.show === true) {
-            //     el.style.display = "block";
-            // } else {
-            //     el.style.display = "none";
-            // }
+            el.onmousedown = moveDownHandler.bind({ binding: binding });
         },
         // 当被绑定的元素插入到 DOM 中时……
         inserted: function (el, binding, vnode, oldVnode) {
-            console.log("inserted binding=", binding)
+
+        },
+        unbind(el, binding, vnode, oldVnode) {
+            el.onmousedown = () => { };
+        }
+    })
+    var i = 0
+    Vue.directive('zqmove-mousemove', {
+        bind: function (el, binding, vnode, oldVnode) {
+            // console.log("zqmove-mousemove", vnode)
+            vnode.key = vnode.key || i++;
+            tempConstructor.mouseMoveCallBack = typeof binding.value === "function" ? binding.value : () => { };
+        },
+        // update: function (el, binding, vnode, oldVnode) {
+        //     vnode.key = vnode.key || i++;
+        //     tempConstructor.mouseMoveCallBack = typeof binding.value === "function" ? binding.value : () => { };
+        // },
+        inserted: function (el, binding, vnode, oldVnode) {
+            vnode.key = vnode.key || i++;
+            tempConstructor.mouseMoveCallBack = typeof binding.value === "function" ? binding.value : () => { };
+        },
+        unbind(el, binding, vnode, oldVnode) {
+            tempConstructor.mouseMoveCallBack = () => { };
+        }
+    })
+    Vue.directive('zqmove-mouseup', {
+        bind: function (el, binding, vnode, oldVnode) {
+            vnode.key = vnode.key || i++;
+            tempConstructor.mouseUpCallBack = typeof binding.value === "function" ? binding.value : () => { };
+        },
+        // update: function (el, binding, vnode, oldVnode) {
+        //     vnode.key = vnode.key || i++;
+        //     tempConstructor.mouseUpCallBack = typeof binding.value === "function" ? binding.value : () => { };
+        // },
+        inserted: function (el, binding, vnode, oldVnode) {
+            vnode.key = vnode.key || i++;
+            tempConstructor.mouseUpCallBack = typeof binding.value === "function" ? binding.value : () => { };
+        },
+        unbind(el, binding, vnode, oldVnode) {
+            tempConstructor.mouseUpCallBack = () => { };
         }
     })
 }

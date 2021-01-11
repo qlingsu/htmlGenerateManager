@@ -8,99 +8,94 @@
 }
 </style>
 <template>
-  <div
-    class="chart-move-div"
-    :id="id"
-    v-show="mousedownState"
-    @mousemove="mousemoveHandler"
-    @mouseup="mouseupHandler"
-  >
-    <dom-list :components="components"></dom-list>
+  <div class="chart-move-div" :id="id" v-show="mousedownState">
+    <dom-list :components="componentsClone"></dom-list>
   </div>
 </template>
 
 <script>
+import Utils from "..//utils/utils.js";
 export default {
   name: "chart-move-div",
   props: {
+    //模拟的用于移动的虚拟dom
     components: {
       type: Array,
       default: function () {
         return [];
       },
     },
+    //鼠标按下的状态
     mousedownState: {
       type: Boolean,
       default: false,
     },
+    //偏移值
     offsetX: {
       type: Number,
       default: 0,
     },
+    //偏移值
     offsetY: {
       type: Number,
       default: 0,
     },
-    id:{
-      type:String,
-      default:"chartsDiv"
-    }
+    //给移动div赋值id
+    id: {
+      type: String,
+      default: "chartsDiv",
+    },
+    //鼠标移动的回调函数
+    mouseMoveCallBack: {
+      type: Function,
+      default: () => {},
+    },
+    //鼠标弹起的时候回调函数
+    mouseUpCallBack: {
+      type: Function,
+      default: () => {},
+    },
   },
-  data(){
+  computed: {
+    componentsClone() {
+      const self = this;
+      return Utils.deepClone(self.components);
+    },
+  },
+  data() {
     return {
-      mouseMoveAction:false
-    }
+      moveDiv: "",
+    };
+  },
+  mounted() {
+    const self = this;
+    self.moveDiv = document.getElementById(self.id);
+    window.onmouseup = function (e) {
+      self.mousedownState = false;
+      self.mouseUpCallBack(e.clientX, e.clientY, self.componentsClone);
+    };
+    window.onmousemove = function (e) {
+      if (self.mousedownState) {
+        self.moveDiv.style.left = e.clientX - self.offsetX + "px";
+        self.moveDiv.style.top = e.clientY - self.offsetY + "px";
+        self.mouseMoveCallBack(e.clientX, e.clientY, self.componentsClone);
+      }
+    };
   },
   methods: {
-    mousemoveHandler(e) {
-      let self = this;
-      if (self.mousedownState) {
-        console.log("mousemoveEvent");
-        let moveDiv = document.getElementById(self.id);
-        moveDiv.style.left = e.clientX - self.offsetX + "px";
-        moveDiv.style.top = e.clientY - self.offsetY + "px";
-        self.mouseMoveAction = true;
-        console.log(e.clientX, e.clientY);
-        self.inFrameReturnId(e.clientX, e.clientY);
-        
-      }
-    },
-    mouseupHandler(e) {
-      let self = this;
-      self.mousedownState = false;
-      self.mouseMoveAction = false;
-      self.offsetX = 0;
-      self.offsetY = 0;
-      let id = self.inFrameReturnId(e.clientX, e.clientY );
-      console.log("id = ",id);
-    },
-    //获取鼠标在的 widget-div 的id
-    inFrameReturnId(x, y) {
-      let self = this;
-      let targetDiv = document.getElementsByClassName("zq-operater")[0];
-      let widgetDivs = targetDiv.getElementsByClassName("widget-div");
-      let id = "";
-      Array.prototype.forEach.call(widgetDivs, function (widgetDiv) {
-        let rect = widgetDiv.getBoundingClientRect();
-        widgetDiv.style.border = "none";
-        // widgetDiv.style.backgroundColor = "#FFFFFF";
-        if (
-          x > rect.left &&
-          x <= rect.left + rect.width &&
-          y > rect.top &&
-          y <= rect.top + rect.height
-        ) {
-          id = widgetDiv.id; //当前鼠标落点的id
-          // if (self.mouseMoveAction) {
-            //如果鼠标在移动状态
-            console.log("widgetDiv.style",widgetDiv.style)
-            widgetDiv.style.border = "2px dotted #50a0f9";
-            // widgetDiv.style.backgroundColor = "#50a0f9";
-          // }
-        }
-      });
-      return id;
-    },
+    // mousemoveHandler(e) {
+    //   const self = this;
+    //   if (self.mousedownState) {
+    //     self.moveDiv.style.left = e.clientX - self.offsetX + "px";
+    //     self.moveDiv.style.top = e.clientY - self.offsetY + "px";
+    //     self.mouseMoveCallBack(e.clientX, e.clientY, self.componentsClone);
+    //   }
+    // },
+    // mouseupHandler(e) {
+    //   const self = this;
+    //   self.mousedownState = false;
+    //   self.mouseUpCallBack(e.clientX, e.clientY, self.componentsClone);
+    // },
   },
 };
 </script>
