@@ -73,6 +73,7 @@ export default {
     window.onmouseup = function (e) {
       self.mousedownState = false;
       self.mouseUpCallBack(e.clientX, e.clientY, self.componentsClone);
+      self.components = [];
     };
     window.onmousemove = function (e) {
       if (self.mousedownState) {
